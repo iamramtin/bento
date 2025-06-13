@@ -8,7 +8,7 @@ Try Bloblang mappings in real-time with our interactive editor.
 
 <div>
   <iframe 
-    src="/bento/wasm/bloblang-playground.html" 
+    src="/bento/playground/playground.html" 
     width="100%" 
     height="600px" 
     frameBorder="0"

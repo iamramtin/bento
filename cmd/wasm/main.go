@@ -12,7 +12,7 @@
 //
 // The function returns a JavaScript object containing:
 //   - "result":        The resulting JSON string if successful.
-//   - "parse_error":   Error message if the mapping could not be parsed.
+//   - "input_error":   Error message if the mapping could not be parsed.
 //   - "mapping_error": Error message if the mapping failed during execution.
 //
 // The WASM module signals readiness by setting `wasmReady` to true in the global JavaScript context.
@@ -32,7 +32,7 @@ import (
 
 type wasmResponse struct {
 	Result       any `json:"result"`
-	ParseError   any `json:"parse_error"`
+	InputError   any `json:"input_error"`
 	MappingError any `json:"mapping_error"`
 }
 
@@ -40,24 +40,24 @@ type wasmResponse struct {
 func executeBloblang(this js.Value, args []js.Value) any {
 	res := wasmResponse{
 		Result:       nil,
-		ParseError:   nil,
+		InputError:   nil,
 		MappingError: nil,
 	}
 
 	if len(args) != 2 {
-		res.ParseError = "Invalid arguments: expected exactly two string parameters (input, mapping)"
+		res.InputError = "Invalid arguments: expected exactly two string parameters (input, mapping)"
 		return toJS(res)
 	}
 
 	input := args[0].String()
 	if input == "" {
-		res.MappingError = "Input JSON string cannot be empty"
+		res.InputError = "Input JSON string cannot be empty"
 		return toJS(res)
 	}
 
 	mapping := args[1].String()
 	if mapping == "" {
-		res.ParseError = "Mapping string cannot be empty"
+		res.MappingError = "Mapping string cannot be empty"
 		return toJS(res)
 	}
 
@@ -65,9 +65,9 @@ func executeBloblang(this js.Value, args []js.Value) any {
 	exec, err := bloblang.Parse(mapping)
 	if err != nil {
 		if perr, ok := err.(*parser.Error); ok {
-			res.ParseError = fmt.Sprintf("failed to parse mapping: %v\n", perr.ErrorAtPositionStructured("", []rune(mapping)))
+			res.MappingError = fmt.Sprintf("failed to parse mapping: %v", perr.ErrorAtPositionStructured("", []rune(mapping)))
 		} else {
-			res.ParseError = fmt.Sprintf("mapping parse error (%T): %v", err, err.Error())
+			res.MappingError = fmt.Sprintf("mapping error: %v", err.Error())
 		}
 		return toJS(res)
 	}
@@ -75,7 +75,7 @@ func executeBloblang(this js.Value, args []js.Value) any {
 	// Apply mapping
 	output, err := executeMapping(exec, input)
 	if err != nil {
-		res.MappingError = fmt.Sprintf("execution error (%T): %v", err, err.Error())
+		res.InputError = fmt.Sprintf("execution error: %v", err.Error())
 		return toJS(res)
 	}
 
@@ -105,7 +105,7 @@ func executeMapping(exec *bloblang.Executor, input string) (string, error) {
 
 func toJS(res wasmResponse) map[string]any {
 	return map[string]any{
-		"parse_error":   res.ParseError,
+		"input_error":   res.InputError,
 		"mapping_error": res.MappingError,
 		"result":        res.Result,
 	}
