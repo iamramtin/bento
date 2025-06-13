@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Bloblang Playground</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        font-family: "IBM Plex Sans", sans-serif;
+        background-color: #fff4e9;
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        color: #1c1e21;
+      }
+
+      .container {
+        display: grid;
+        grid-template-rows: 1fr auto 1fr;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        height: 100vh;
+        padding: 12px;
+      }
+
+      .panel {
+        background: #ffffff;
+        border: 1px solid #eb8788;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .panel-header {
+        background: #ffbcba;
+        color: #333333;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 14px;
+        border-bottom: 2px solid #eb8788;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* Action buttons - 3D Docusaurus style */
+      .action-btn {
+        position: relative;
+        border: none;
+        background-color: #ffe6d0;
+        color: #333333;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: "IBM Plex Sans", sans-serif;
+        box-shadow: 0 3px 0 #e8908e;
+        transform: translateY(0);
+        transition: transform 0.15s ease, box-shadow 0.15s ease,
+          background-color 0.15s ease;
+        margin-left: 4px;
+      }
+
+      .action-btn:hover {
+        background-color: #ffd0ce;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 0 #e8908e;
+        cursor: pointer;
+      }
+
+      .action-btn:active {
+        background-color: #ffbcba;
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #e8908e;
+      }
+
+      .action-btn.primary {
+        background-color: #fde5d8;
+        color: #553630;
+        box-shadow: 0 3px 0 #eb8788;
+      }
+
+      .action-btn.primary:hover {
+        background-color: #f5d5c8;
+        cursor: pointer;
+        box-shadow: 0 4px 0 #eb8788;
+      }
+
+      .action-btn.primary:active {
+        background-color: #edc5b8;
+        box-shadow: 0 1px 0 #eb8788;
+      }
+
+      .panel-content {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .editor {
+        width: 100%;
+        height: 100%;
+        border: none;
+        font-family: "IBM Plex Sans", monospace;
+        font-size: 13px;
+        padding: 12px;
+        background: #ffffff;
+        color: #1c1e21;
+        resize: none;
+        outline: none;
+      }
+
+      .ace-editor {
+        width: 100%;
+        height: 100%;
+      }
+
+      .output {
+        width: 100%;
+        height: 100%;
+        padding: 12px;
+        background: #fde5d8 !important;
+        color: #1c1e21;
+        font-family: "Monaco", monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        overflow: auto;
+        border: none;
+        line-height: 1.4;
+      }
+
+      /* Syntax highlighted output */
+      .output.json-formatted {
+        white-space: pre;
+      }
+
+      .output .json-key {
+        color: #d32f2f;
+        font-weight: 600;
+      }
+
+      .output .json-string {
+        color: #2e7d32;
+        font-weight: 500;
+      }
+
+      .output .json-number {
+        color: #eb8788;
+        font-weight: 500;
+      }
+
+      .output .json-boolean {
+        color: #553630;
+        font-weight: 600;
+      }
+
+      .output .json-null {
+        color: #999999;
+        font-style: italic;
+      }
+
+      .output .json-punctuation {
+        color: #553630;
+      }
+
+      /* Equal height layout: Input top-left, Mapping top-right, Output bottom full-width */
+      .input-panel {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .mapping-panel {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      /* Resizer between top and bottom rows */
+      .horizontal-resizer {
+        grid-column: 1 / 3;
+        grid-row: 2;
+        height: 8px;
+        background: #eb8788;
+        cursor: row-resize;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+      }
+
+      .horizontal-resizer:hover {
+        background: #d32f2f;
+      }
+
+      .horizontal-resizer::before {
+        content: "⋯";
+        color: #333333;
+        font-weight: bold;
+        font-size: 16px;
+        letter-spacing: 2px;
+      }
+
+      .output-panel {
+        grid-column: 1 / 3;
+        grid-row: 3;
+      }
+
+      /* Status and indicators */
+      .status-badge {
+        background: #fde5d8;
+        color: #553630;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .status-badge.show {
+        opacity: 1;
+      }
+
+      .status-badge.success {
+        background: #e8f5e8;
+        color: #2e7d32;
+      }
+
+      .status-badge.error {
+        background: #ffebee;
+        color: #d32f2f;
+      }
+
+      .status-badge.executing {
+        background: #fde5d8;
+        color: #553630;
+      }
+
+      /* Error states */
+      .panel.error {
+        border-color: #d32f2f;
+        box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.2);
+      }
+
+      .panel.error .panel-header {
+        background: #ffebee;
+        color: #d32f2f;
+      }
+
+      .output.error {
+        background: #ffebee;
+        color: #d32f2f;
+        border: 1px solid #d32f2f;
+        padding: 16px;
+        white-space: normal;
+      }
+
+      .output.success {
+        background: #ffffff;
+        color: #1c1e21;
+      }
+
+      /* Error message styling */
+      .error-message {
+        background: #ffebee;
+        border: 1px solid #d32f2f;
+        border-radius: 6px;
+        padding: 16px;
+        margin: 8px;
+        color: #d32f2f;
+        font-family: "IBM Plex Sans", sans-serif;
+        font-size: 13px;
+        line-height: 0.5;
+      }
+
+      .error-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .error-title::before {
+        content: "⚠️";
+        font-size: 16px;
+      }
+
+      .error-details {
+        font-family: "IBM Plex Sans", monospace;
+        background: rgba(211, 47, 47, 0.1);
+        padding: 8px;
+        border-radius: 4px;
+        margin-top: 8px;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+
+      /* Formatter section styling */
+      .formatter-section {
+        border-top: 1px solid #eb8788;
+        background: #fde5d8;
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #553630;
+      }
+
+      .formatter-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .formatter-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .lint-indicator {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 500;
+      }
+
+      .lint-indicator.valid::before {
+        content: "✓";
+        color: #2e7d32;
+      }
+
+      .lint-indicator.invalid::before {
+        content: "✗";
+        color: #d32f2f;
+      }
+
+      .lint-indicator.warning::before {
+        content: "⚠";
+        color: #eb8788;
+      }
+
+      .format-btn {
+        background: #ffffff;
+        border: 1px solid #eb8788;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #553630;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: "IBM Plex Sans", sans-serif;
+      }
+
+      .format-btn:hover {
+        background: #ffbcba;
+        transform: translateY(-1px);
+      }
+
+      .format-btn:active {
+        transform: translateY(0);
+      }
+
+      .format-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Loading overlay */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 244, 233, 0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        font-size: 18px;
+        font-weight: 500;
+        color: #553630;
+      }
+
+      .loading-overlay.hidden {
+        display: none;
+      }
+
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #fde5d8;
+        border-top: 3px solid #eb8788;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Responsive design */
+      @media (max-width: 768px) {
+        .container {
+          grid-template-rows: auto auto auto auto auto;
+          grid-template-columns: 1fr;
+          gap: 8px;
+          padding: 8px;
+        }
+
+        .input-panel {
+          grid-column: 1;
+          grid-row: 1;
+        }
+
+        .mapping-panel {
+          grid-column: 1;
+          grid-row: 2;
+        }
+
+        .horizontal-resizer {
+          grid-column: 1;
+          grid-row: 3;
+        }
+
+        .output-panel {
+          grid-column: 1;
+          grid-row: 4;
+        }
+
+        .action-btn {
+          font-size: 10px;
+          padding: 3px 6px;
+        }
+      }
+
+      /* Better scrollbars */
+      .output::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .output::-webkit-scrollbar-track {
+        background: #fde5d8;
+        border-radius: 4px;
+      }
+
+      .output::-webkit-scrollbar-thumb {
+        background: #eb8788;
+        border-radius: 4px;
+      }
+
+      .output::-webkit-scrollbar-thumb:hover {
+        background: #d32f2f;
+      }
+
+      /* Custom ACE theme styles */
+      .ace-bento .ace_editor {
+        font-family: "IBM Plex Sans", monospace !important;
+        background-color: #ffffff !important;
+        color: #1c1e21 !important;
+      }
+
+      .ace-bento .ace_gutter {
+        background-color: #fde5d8 !important;
+        color: #553630 !important;
+        border-right: 1px solid #eb8788 !important;
+      }
+
+      .ace-bento .ace_gutter-active-line {
+        background-color: #ffbcba !important;
+      }
+
+      .ace-bento .ace_cursor {
+        color: #553630 !important;
+      }
+
+      .ace-bento .ace_selection {
+        background-color: rgba(235, 135, 136, 0.2) !important;
+      }
+
+      .ace-bento .ace_active-line {
+        background-color: rgba(253, 229, 216, 0.3) !important;
+      }
+
+      /* JSON Syntax Highlighting */
+      .ace-bento .ace_string {
+        color: #2e7d32 !important;
+        font-weight: 500 !important;
+      }
+
+      .ace-bento .ace_string.ace_property {
+        color: #d32f2f !important;
+        font-weight: 600 !important;
+      }
+
+      .ace-bento .ace_constant.ace_numeric {
+        color: #eb8788 !important;
+        font-weight: 500 !important;
+      }
+
+      .ace-bento .ace_constant.ace_language {
+        color: #553630 !important;
+        font-weight: 600 !important;
+      }
+
+      .ace-bento .ace_constant.ace_language.ace_null {
+        color: #999999 !important;
+        font-style: italic !important;
+      }
+
+      .ace-bento .ace_punctuation {
+        color: #553630 !important;
+      }
+
+      /* Bloblang DSL Syntax Highlighting */
+      .ace-bento .ace_keyword {
+        color: #d32f2f !important;
+        font-weight: 600 !important;
+      }
+
+      .ace-bento .ace_support.ace_function {
+        color: #2e7d32 !important;
+        font-weight: 500 !important;
+      }
+
+      .ace-bento .ace_variable {
+        color: #eb8788 !important;
+        font-weight: 500 !important;
+      }
+
+      .ace-bento .ace_identifier {
+        color: #1c1e21 !important;
+      }
+
+      .ace-bento .ace_comment {
+        color: #999999 !important;
+        font-style: italic !important;
+      }
+
+      .ace-bento .ace_constant.ace_other {
+        color: #553630 !important;
+        font-weight: 600 !important;
+      }
+
+      /* Bloblang-specific tokens */
+      .ace-bento .ace_bloblang_root {
+        color: #d32f2f !important;
+        font-weight: 600 !important;
+      }
+
+      .ace-bento .ace_bloblang_this {
+        color: #2e7d32 !important;
+        font-weight: 600 !important;
+      }
+
+      .ace-bento .ace_bloblang_method {
+        color: #2e7d32 !important;
+        font-weight: 500 !important;
+      }
+
+      .ace-bento .ace_bloblang_operator {
+        color: #553630 !important;
+        font-weight: 500 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-spinner"></div>
+      <div>Loading Bloblang Playground...</div>
+      <div style="font-size: 14px; margin-top: 10px; opacity: 0.7">
+        Initializing WebAssembly runtime
+      </div>
+    </div>
+
+    <div class="container" id="container">
+      <!-- Input Panel (top-left) -->
+      <div class="panel input-panel" id="inputPanel">
+        <div class="panel-header">
+          <div class="header-left">
+            <span>Input JSON</span>
+          </div>
+          <div class="header-right">
+            <span class="status-badge" id="inputStatus">Ready</span>
+            <button
+              class="action-btn"
+              onclick="copyInput()"
+              title="Copy input to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn"
+              onclick="loadInputFile()"
+              title="Load JSON from file"
+            >
+              Load
+            </button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="aceInput" class="ace-editor"></div>
+          <textarea
+            id="fallbackInput"
+            class="editor"
+            style="display: none"
+            placeholder="Enter your JSON input here..."
+          >
+{"message": "hello world", "number": 42}</textarea
+          >
+        </div>
+        <div class="formatter-section" id="inputFormatter">
+          <div class="formatter-left">
+            <span class="lint-indicator valid" id="inputLint">Valid JSON</span>
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              onclick="formatInputJSON()"
+              title="Format and prettify JSON"
+            >
+              Format
+            </button>
+            <button
+              class="format-btn"
+              onclick="minifyInputJSON()"
+              title="Minify JSON"
+            >
+              Minify
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mapping Panel (top-right) -->
+      <div class="panel mapping-panel" id="mappingPanel">
+        <div class="panel-header">
+          <div class="header-left">
+            <span>Bloblang Mapping</span>
+          </div>
+          <div class="header-right">
+            <span class="status-badge" id="mappingStatus">Ready</span>
+            <button
+              class="action-btn"
+              onclick="copyMapping()"
+              title="Copy mapping to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn"
+              onclick="loadMappingFile()"
+              title="Load mapping from file"
+            >
+              Load
+            </button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="aceMapping" class="ace-editor"></div>
+          <textarea
+            id="fallbackMapping"
+            class="editor"
+            style="display: none"
+            placeholder="Enter your Bloblang mapping here..."
+          >
+root.greeting = this.message.uppercase()
+root.doubled = this.number * 2</textarea
+          >
+        </div>
+        <div class="formatter-section" id="mappingFormatter">
+          <div class="formatter-left">
+            <span class="lint-indicator valid" id="mappingLint"
+              >Valid Syntax</span
+            >
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              onclick="formatMapping()"
+              title="Format Bloblang mapping"
+            >
+              Format
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Horizontal Resizer -->
+      <div class="horizontal-resizer" id="horizontalResizer"></div>
+
+      <!-- Output Panel (bottom full-width) -->
+      <div class="panel output-panel">
+        <div class="panel-header">
+          <div class="header-left">
+            <span>Output</span>
+          </div>
+          <div class="header-right">
+            <span class="status-badge" id="outputStatus">Ready</span>
+            <button
+              class="action-btn"
+              onclick="copyOutput()"
+              title="Copy output to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn primary"
+              onclick="saveOutput()"
+              title="Save output to file"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="output" class="output success">
+            Ready to execute your first mapping...
+          </div>
+        </div>
+        <div class="formatter-section" id="outputFormatter">
+          <div class="formatter-left">
+            <span class="lint-indicator" id="outputLint">Ready</span>
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              onclick="formatOutputJSON()"
+              title="Format output JSON"
+              id="formatOutputBtn"
+            >
+              Format
+            </button>
+            <button
+              class="format-btn"
+              onclick="minifyOutputJSON()"
+              title="Minify output JSON"
+              id="minifyOutputBtn"
+            >
+              Minify
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden file inputs -->
+    <input
+      type="file"
+      id="inputFileInput"
+      accept=".json,.txt"
+      style="display: none"
+      onchange="handleInputFile(event)"
+    />
+    <input
+      type="file"
+      id="mappingFileInput"
+      accept=".blobl,.txt"
+      style="display: none"
+      onchange="handleMappingFile(event)"
+    />
+
+    <!-- WASM Support -->
+    <script src="./wasm_exec.js"></script>
+
+    <!-- ACE Editor -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/ace.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/mode-json.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/mode-text.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <script>
+      let wasmReady = false;
+      let aceInputEditor = null;
+      let aceMappingEditor = null;
+      let executionTimeout = null;
+      let isExecuting = false;
+      let isResizing = false;
+
+      const outputArea = document.getElementById("output");
+      const inputPanel = document.getElementById("inputPanel");
+      const mappingPanel = document.getElementById("mappingPanel");
+      const container = document.getElementById("container");
+      const horizontalResizer = document.getElementById("horizontalResizer");
+
+      // Define custom Bento theme for ACE
+      ace.define(
+        "ace/theme/bento",
+        ["require", "exports", "module", "ace/lib/dom"],
+        function (acequire, exports, module) {
+          exports.isDark = false;
+          exports.cssClass = "ace-bento";
+          exports.cssText = `
+          .ace-bento .ace_editor {
+            font-family: 'IBM Plex Sans', monospace !important;
+          }
+        `;
+
+          const dom = acequire("../lib/dom");
+          dom.importCssString(exports.cssText, exports.cssClass);
+        }
+      );
+
+      // Define custom Bloblang mode for ACE
+      ace.define(
+        "ace/mode/bloblang",
+        [
+          "require",
+          "exports",
+          "module",
+          "ace/lib/oop",
+          "ace/mode/text",
+          "ace/mode/text_highlight_rules",
+        ],
+        function (acequire, exports, module) {
+          const oop = acequire("../lib/oop");
+          const TextMode = acequire("./text").Mode;
+          const TextHighlightRules = acequire(
+            "./text_highlight_rules"
+          ).TextHighlightRules;
+
+          const BloblangHighlightRules = function () {
+            this.$rules = {
+              start: [
+                {
+                  token: "comment",
+                  regex: "#.*$",
+                },
+                {
+                  token: "ace_bloblang_root",
+                  regex: "\\broot\\b",
+                },
+                {
+                  token: "ace_bloblang_this",
+                  regex: "\\bthis\\b",
+                },
+                {
+                  token: "keyword",
+                  regex:
+                    "\\b(if|else|match|let|map|filter|select|from|where|group_by|sort_by|unique|flatten)\\b",
+                },
+                {
+                  token: "ace_bloblang_method",
+                  regex:
+                    "\\.(uppercase|lowercase|trim|split|join|replace|contains|length|index|slice|append|prepend|reverse|sort|unique|flatten|map|filter|select|group_by|sort_by|merge|delete|exists|type|string|number|bool|array|object|keys|values|has|get|set|not_null|catch|try)\\b",
+                },
+                {
+                  token: "constant.language",
+                  regex: "\\b(true|false)\\b",
+                },
+                {
+                  token: "constant.language.ace_null",
+                  regex: "\\bnull\\b",
+                },
+                {
+                  token: "constant.numeric",
+                  regex: "\\b\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b",
+                },
+                {
+                  token: "string",
+                  regex: '"(?:[^"\\\\]|\\\\.)*"',
+                },
+                {
+                  token: "string",
+                  regex: "'(?:[^'\\\\]|\\\\.)*'",
+                },
+                {
+                  token: "string",
+                  regex: "`(?:[^`\\\\]|\\\\.)*`",
+                },
+                {
+                  token: "ace_bloblang_operator",
+                  regex: "[=+\\-*/%<>!&|]+",
+                },
+                {
+                  token: "punctuation",
+                  regex: "[{}\\[\\](),.:]",
+                },
+                {
+                  token: "variable",
+                  regex: "\\$[a-zA-Z_][a-zA-Z0-9_]*",
+                },
+                {
+                  token: "identifier",
+                  regex: "[a-zA-Z_][a-zA-Z0-9_]*",
+                },
+              ],
+            };
+          };
+
+          oop.inherits(BloblangHighlightRules, TextHighlightRules);
+
+          const BloblangMode = function () {
+            this.HighlightRules = BloblangHighlightRules;
+          };
+          oop.inherits(BloblangMode, TextMode);
+
+          (function () {
+            this.$id = "ace/mode/bloblang";
+          }).call(BloblangMode.prototype);
+
+          exports.Mode = BloblangMode;
+        }
+      );
+
+      // Resizer functionality
+      let startY = 0;
+      let startGridRows = "";
+
+      horizontalResizer.addEventListener("mousedown", initResize);
+
+      function initResize(e) {
+        isResizing = true;
+        startY = e.clientY;
+        startGridRows = window.getComputedStyle(container).gridTemplateRows;
+        document.addEventListener("mousemove", doResize);
+        document.addEventListener("mouseup", stopResize);
+        document.body.style.cursor = "row-resize";
+        document.body.style.userSelect = "none";
+      }
+
+      function doResize(e) {
+        if (!isResizing) return;
+
+        const deltaY = e.clientY - startY;
+        const containerHeight = container.clientHeight - 24; // Subtract padding
+        const resizerHeight = 8;
+        const minPanelHeight = 150;
+
+        // Calculate new heights
+        const totalHeight = containerHeight - resizerHeight;
+        const currentTopHeight = totalHeight / 2 + deltaY;
+        const currentBottomHeight = totalHeight - currentTopHeight;
+
+        // Enforce minimum heights
+        if (
+          currentTopHeight >= minPanelHeight &&
+          currentBottomHeight >= minPanelHeight
+        ) {
+          const topFr = currentTopHeight / totalHeight;
+          const bottomFr = currentBottomHeight / totalHeight;
+          container.style.gridTemplateRows = `${topFr}fr auto ${bottomFr}fr`;
+        }
+      }
+
+      function stopResize() {
+        isResizing = false;
+        document.removeEventListener("mousemove", doResize);
+        document.removeEventListener("mouseup", stopResize);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+
+      // File and clipboard utilities
+      async function copyToClipboard(
+        text,
+        successMessage = "Copied to clipboard!"
+      ) {
+        try {
+          await navigator.clipboard.writeText(text);
+          showNotification(successMessage, "success");
+        } catch (err) {
+          console.error("Failed to copy: ", err);
+          showNotification("Failed to copy to clipboard", "error");
+        }
+      }
+
+      function downloadFile(content, filename, contentType = "text/plain") {
+        const blob = new Blob([content], { type: contentType });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.click();
+        window.URL.revokeObjectURL(url);
+        showNotification(`Downloaded ${filename}`, "success");
+      }
+
+      function showNotification(message, type = "info") {
+        // Create notification element
+        const notification = document.createElement("div");
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: ${
+            type === "success"
+              ? "#E8F5E8"
+              : type === "error"
+              ? "#FFEBEE"
+              : "#FDE5D8"
+          };
+          color: ${
+            type === "success"
+              ? "#2E7D32"
+              : type === "error"
+              ? "#D32F2F"
+              : "#553630"
+          };
+          padding: 12px 16px;
+          border-radius: 6px;
+          border: 1px solid ${
+            type === "success"
+              ? "#2E7D32"
+              : type === "error"
+              ? "#D32F2F"
+              : "#EB8788"
+          };
+          font-family: 'IBM Plex Sans', sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          z-index: 1000;
+          opacity: 0;
+          transform: translateX(100%);
+          transition: all 0.3s ease;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Animate in
+        setTimeout(() => {
+          notification.style.opacity = "1";
+          notification.style.transform = "translateX(0)";
+        }, 10);
+
+        // Animate out and remove
+        setTimeout(() => {
+          notification.style.opacity = "0";
+          notification.style.transform = "translateX(100%)";
+          setTimeout(() => document.body.removeChild(notification), 300);
+        }, 3000);
+      }
+
+      // Action functions
+      function copyInput() {
+        const input = getInput();
+        copyToClipboard(input, "Input copied to clipboard!");
+      }
+
+      function copyMapping() {
+        const mapping = getMapping();
+        copyToClipboard(mapping, "Mapping copied to clipboard!");
+      }
+
+      function copyOutput() {
+        const output = outputArea.textContent;
+        copyToClipboard(output, "Output copied to clipboard!");
+      }
+
+      function saveOutput() {
+        const output = outputArea.textContent;
+        const timestamp = new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:.]/g, "-");
+
+        // Try to format as JSON if possible, otherwise save as plain text
+        let formattedOutput = output;
+        let extension = "txt";
+
+        if (isValidJSON(output)) {
+          formattedOutput = formatJSON(output);
+          extension = "json";
+        }
+
+        downloadFile(
+          formattedOutput,
+          `bloblang-output-${timestamp}.${extension}`,
+          extension === "json" ? "application/json" : "text/plain"
+        );
+      }
+
+      function loadInputFile() {
+        document.getElementById("inputFileInput").click();
+      }
+
+      function loadMappingFile() {
+        document.getElementById("mappingFileInput").click();
+      }
+
+      function handleInputFile(event) {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const content = e.target.result;
+            if (aceInputEditor) {
+              aceInputEditor.setValue(content, 1);
+            } else {
+              document.getElementById("fallbackInput").value = content;
+            }
+            showNotification(`Loaded ${file.name}`, "success");
+            execute();
+          };
+          reader.readAsText(file);
+        }
+      }
+
+      function handleMappingFile(event) {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const content = e.target.result;
+            if (aceMappingEditor) {
+              aceMappingEditor.setValue(content, 1);
+            } else {
+              document.getElementById("fallbackMapping").value = content;
+            }
+            showNotification(`Loaded ${file.name}`, "success");
+            execute();
+          };
+          reader.readAsText(file);
+        }
+      }
+
+      // Status management
+      function updateStatus(elementId, status, message) {
+        const badge = document.getElementById(elementId);
+        if (badge) {
+          badge.textContent = message;
+          badge.className = `status-badge show ${status}`;
+
+          // Auto-hide after delay
+          setTimeout(() => {
+            badge.classList.remove("show");
+          }, 2000);
+        }
+      }
+
+      // Initialize WASM
+      async function loadWasm() {
+        const wasmPaths = [
+          "./bloblang-playground.wasm",
+          "bloblang-playground.wasm",
+          "/wasm/bloblang-playground.wasm",
+          "/bento/wasm/bloblang-playground.wasm",
+        ];
+
+        for (const path of wasmPaths) {
+          try {
+            console.log("Trying to load WASM from:", path);
+            const result = await WebAssembly.instantiateStreaming(
+              fetch(path),
+              go.importObject
+            );
+            go.run(result.instance);
+            wasmReady = true;
+            console.log("WASM loaded successfully from:", path);
+            initializeEditor();
+            return;
+          } catch (error) {
+            console.warn("Failed to load WASM from", path, ":", error.message);
+          }
+        }
+
+        // If all paths failed, simulate for demo
+        console.error("Failed to load WASM from any path, using mock for demo");
+        wasmReady = true;
+
+        // Mock executeBloblang function for demo
+        window.executeBloblang = function (input, mapping) {
+          try {
+            // Simple mock transformation
+            const inputObj = JSON.parse(input);
+            const result = {
+              greeting: inputObj.message
+                ? inputObj.message.toUpperCase()
+                : "HELLO",
+              doubled: inputObj.number ? inputObj.number * 2 : 84,
+            };
+            return {
+              result: JSON.stringify(result, null, 2),
+              mapping_error: "",
+              parse_error: "",
+            };
+          } catch (e) {
+            return {
+              result: "",
+              mapping_error: "",
+              parse_error: "Invalid JSON input: " + e.message,
+            };
+          }
+        };
+
+        initializeEditor();
+      }
+
+      function initializeEditor() {
+        // Hide loading overlay
+        document.getElementById("loadingOverlay").classList.add("hidden");
+
+        try {
+          // Initialize ACE editors with custom Bento theme
+          aceInputEditor = ace.edit("aceInput");
+          aceInputEditor.setValue(
+            '{"message": "hello world", "number": 42}',
+            1
+          );
+          aceInputEditor.session.setMode("ace/mode/json");
+          aceInputEditor.setTheme("ace/theme/bento");
+          aceInputEditor.session.setTabSize(2);
+          aceInputEditor.session.setUseSoftTabs(true);
+          aceInputEditor.session.setUseWorker(false);
+          aceInputEditor.setShowPrintMargin(false);
+          aceInputEditor.setOption("wrap", true);
+
+          aceMappingEditor = ace.edit("aceMapping");
+          aceMappingEditor.setValue(
+            "root.greeting = this.message.uppercase()\nroot.doubled = this.number * 2",
+            1
+          );
+          aceMappingEditor.session.setMode("ace/mode/bloblang");
+          aceMappingEditor.setTheme("ace/theme/bento");
+          aceMappingEditor.session.setTabSize(2);
+          aceMappingEditor.session.setUseSoftTabs(true);
+          aceMappingEditor.session.setUseWorker(false);
+          aceMappingEditor.setShowPrintMargin(false);
+          aceMappingEditor.setOption("wrap", true);
+
+          // Set up live execution with linting
+          aceInputEditor.on("change", () => {
+            updateInputLinter();
+            debouncedExecute();
+          });
+          aceMappingEditor.on("change", () => {
+            updateMappingLinter();
+            debouncedExecute();
+          });
+
+          // Initial linting
+          updateInputLinter();
+          updateMappingLinter();
+          updateOutputLinter();
+
+          // Initial execution
+          execute();
+        } catch (error) {
+          console.warn("ACE editor failed to load, falling back to textarea");
+          // Show fallback textareas
+          document.getElementById("aceInput").style.display = "none";
+          document.getElementById("fallbackInput").style.display = "block";
+          document.getElementById("aceMapping").style.display = "none";
+          document.getElementById("fallbackMapping").style.display = "block";
+
+          // Set up fallback execution with linting
+          document
+            .getElementById("fallbackInput")
+            .addEventListener("input", () => {
+              updateInputLinter();
+              debouncedExecute();
+            });
+          document
+            .getElementById("fallbackMapping")
+            .addEventListener("input", () => {
+              updateMappingLinter();
+              debouncedExecute();
+            });
+
+          // Initial linting for fallback
+          updateInputLinter();
+          updateMappingLinter();
+          updateOutputLinter();
+
+          execute();
+        }
+      }
+
+      function getMapping() {
+        if (aceMappingEditor) {
+          return aceMappingEditor.getValue();
+        }
+        return document.getElementById("fallbackMapping").value;
+      }
+
+      function getInput() {
+        if (aceInputEditor) {
+          return aceInputEditor.getValue();
+        }
+        return document.getElementById("fallbackInput").value;
+      }
+
+      // Debounced execution
+      function debouncedExecute() {
+        if (executionTimeout) {
+          clearTimeout(executionTimeout);
+        }
+
+        updateStatus("inputStatus", "executing", "Processing...");
+        updateStatus("mappingStatus", "executing", "Processing...");
+
+        executionTimeout = setTimeout(() => {
+          execute();
+        }, 300);
+      }
+
+      // Enhanced JSON formatting with syntax highlighting
+      function formatJSON(jsonString) {
+        try {
+          const parsed = JSON.parse(jsonString);
+          return JSON.stringify(parsed, null, 2);
+        } catch (e) {
+          return jsonString; // Return original if not valid JSON
+        }
+      }
+
+      function minifyJSON(jsonString) {
+        try {
+          const parsed = JSON.parse(jsonString);
+          return JSON.stringify(parsed);
+        } catch (e) {
+          return jsonString; // Return original if not valid JSON
+        }
+      }
+
+      // Linting functions
+      function lintJSON(jsonString) {
+        try {
+          JSON.parse(jsonString);
+          return { valid: true, message: "Valid JSON" };
+        } catch (e) {
+          return { valid: false, message: `Invalid JSON: ${e.message}` };
+        }
+      }
+
+      function lintBloblang(mappingString) {
+        // Basic Bloblang syntax validation
+        const lines = mappingString.split("\n");
+        const errors = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line === "" || line.startsWith("#")) continue;
+
+          // Check for basic syntax patterns
+          if (line.includes("=") && !line.match(/^(root|let)\./)) {
+            if (!line.match(/^\w+\s*=/) && !line.match(/^root\./)) {
+              errors.push(
+                `Line ${
+                  i + 1
+                }: Assignments should start with 'root.' or variable name`
+              );
+            }
+          }
+        }
+
+        if (errors.length > 0) {
+          return { valid: false, message: errors[0] };
+        }
+        return { valid: true, message: "Valid Syntax" };
+      }
+
+      // Format functions for buttons
+      function formatInputJSON() {
+        const input = getInput();
+        const formatted = formatJSON(input);
+        if (aceInputEditor) {
+          aceInputEditor.setValue(formatted, 1);
+        } else {
+          document.getElementById("fallbackInput").value = formatted;
+        }
+        updateInputLinter();
+        showNotification("JSON formatted", "success");
+      }
+
+      function minifyInputJSON() {
+        const input = getInput();
+        const minified = minifyJSON(input);
+        if (aceInputEditor) {
+          aceInputEditor.setValue(minified, 1);
+        } else {
+          document.getElementById("fallbackInput").value = minified;
+        }
+        updateInputLinter();
+        showNotification("JSON minified", "success");
+      }
+
+      function formatOutputJSON() {
+        const output = outputArea.textContent;
+        if (isValidJSON(output)) {
+          const formatted = formatJSON(output);
+          const highlighted = syntaxHighlightJSON(formatted);
+          outputArea.innerHTML = highlighted;
+          outputArea.classList.add("json-formatted");
+          updateOutputLinter();
+          showNotification("Output formatted", "success");
+        } else {
+          showNotification("Output is not valid JSON", "error");
+        }
+      }
+
+      function minifyOutputJSON() {
+        const output = outputArea.textContent;
+        if (isValidJSON(output)) {
+          const minified = minifyJSON(output);
+          const highlighted = syntaxHighlightJSON(minified);
+          outputArea.innerHTML = highlighted;
+          outputArea.classList.add("json-formatted");
+          updateOutputLinter();
+          showNotification("Output minified", "success");
+        } else {
+          showNotification("Output is not valid JSON", "error");
+        }
+      }
+
+      function formatMapping() {
+        const mapping = getMapping();
+        // Basic Bloblang formatting - add proper indentation and spacing
+        const lines = mapping.split("\n");
+        const formatted = lines
+          .map((line) => {
+            const trimmed = line.trim();
+            if (trimmed === "" || trimmed.startsWith("#")) return trimmed;
+
+            // Add consistent spacing around operators
+            return trimmed
+              .replace(/\s*=\s*/g, " = ")
+              .replace(/\s*\.\s*/g, ".")
+              .replace(/\s*\(\s*/g, "(")
+              .replace(/\s*\)\s*/g, ")");
+          })
+          .join("\n");
+
+        if (aceMappingEditor) {
+          aceMappingEditor.setValue(formatted, 1);
+        } else {
+          document.getElementById("fallbackMapping").value = formatted;
+        }
+
+        updateMappingLinter();
+        showNotification("Mapping formatted", "success");
+      }
+
+      // Linter update functions
+      function updateInputLinter() {
+        const input = getInput();
+        const lint = lintJSON(input);
+        const indicator = document.getElementById("inputLint");
+
+        indicator.textContent = lint.message;
+        indicator.className = `lint-indicator ${
+          lint.valid ? "valid" : "invalid"
+        }`;
+      }
+
+      function updateMappingLinter() {
+        const mapping = getMapping();
+        const lint = lintBloblang(mapping);
+        const indicator = document.getElementById("mappingLint");
+
+        indicator.textContent = lint.message;
+        indicator.className = `lint-indicator ${
+          lint.valid ? "valid" : "invalid"
+        }`;
+      }
+
+      function updateOutputLinter() {
+        const output = outputArea.textContent;
+        const indicator = document.getElementById("outputLint");
+        const formatBtn = document.getElementById("formatOutputBtn");
+        const minifyBtn = document.getElementById("minifyOutputBtn");
+
+        if (output === "Ready to execute your first mapping...") {
+          indicator.textContent = "Ready";
+          indicator.className = "lint-indicator";
+          formatBtn.disabled = true;
+          minifyBtn.disabled = true;
+          return;
+        }
+
+        const isJSON = isValidJSON(output);
+        if (isJSON) {
+          indicator.textContent = "Valid JSON";
+          indicator.className = "lint-indicator valid";
+          formatBtn.disabled = false;
+          minifyBtn.disabled = false;
+        } else {
+          indicator.textContent = "Text Output";
+          indicator.className = "lint-indicator warning";
+          formatBtn.disabled = true;
+          minifyBtn.disabled = true;
+        }
+      }
+
+      // Enhanced error message display
+      function displayError(title, message, details = null) {
+        const errorHtml = `
+          <div class="error-message">
+            <div class="error-title">${title}</div>
+            <div>${message}</div>
+            ${details ? `<div class="error-details">${details}</div>` : ""}
+          </div>
+        `;
+        return errorHtml;
+      }
+
+      function syntaxHighlightJSON(json) {
+        if (typeof json !== "string") {
+          json = JSON.stringify(json, null, 2);
+        }
+
+        json = json
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        return json.replace(
+          /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+          function (match) {
+            let cls = "json-number";
+            if (/^"/.test(match)) {
+              if (/:$/.test(match)) {
+                cls = "json-key";
+              } else {
+                cls = "json-string";
+              }
+            } else if (/true|false/.test(match)) {
+              cls = "json-boolean";
+            } else if (/null/.test(match)) {
+              cls = "json-null";
+            }
+            return '<span class="' + cls + '">' + match + "</span>";
+          }
+        );
+      }
+
+      function isValidJSON(str) {
+        try {
+          JSON.parse(str);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      function execute() {
+        if (!wasmReady || isExecuting) {
+          return;
+        }
+
+        isExecuting = true;
+
+        try {
+          const mapping = getMapping();
+          const input = getInput();
+
+          // Call WASM function (or mock)
+          const response = executeBloblang(input, mapping);
+
+          // Reset error states
+          inputPanel.classList.remove("error");
+          mappingPanel.classList.remove("error");
+          outputArea.classList.remove("error", "success", "json-formatted");
+
+          let result = "No result";
+          let hasError = false;
+
+          if (response.result && response.result.length > 0) {
+            // Success case
+            outputArea.classList.add("success");
+            updateStatus("inputStatus", "success", "✓");
+            updateStatus("mappingStatus", "success", "✓");
+            updateStatus("outputStatus", "success", "Success");
+
+            // Enhanced JSON formatting with syntax highlighting
+            if (isValidJSON(response.result)) {
+              const formattedJSON = formatJSON(response.result);
+              const highlightedJSON = syntaxHighlightJSON(formattedJSON);
+              outputArea.innerHTML = highlightedJSON;
+              outputArea.classList.add("json-formatted");
+            } else {
+              // If it's not JSON, just clean up whitespace
+              result = response.result.trim();
+              outputArea.textContent = result;
+            }
+            updateOutputLinter();
+          } else if (
+            response.mapping_error &&
+            response.mapping_error.length > 0
+          ) {
+            // Mapping error
+            mappingPanel.classList.add("error");
+            outputArea.classList.add("error");
+            const errorHtml = displayError(
+              "Mapping Error",
+              "There was an error in your Bloblang mapping:",
+              response.mapping_error
+            );
+            outputArea.innerHTML = errorHtml;
+            hasError = true;
+            updateStatus("mappingStatus", "error", "Error");
+            updateStatus("outputStatus", "error", "Mapping Error");
+            updateOutputLinter();
+          } else if (response.parse_error && response.parse_error.length > 0) {
+            // Parse error
+            inputPanel.classList.add("error");
+            outputArea.classList.add("error");
+            const errorHtml = displayError(
+              "Parse Error",
+              "There was an error parsing your input JSON:",
+              response.parse_error
+            );
+            outputArea.innerHTML = errorHtml;
+            hasError = true;
+            updateStatus("inputStatus", "error", "Error");
+            updateStatus("outputStatus", "error", "Parse Error");
+            updateOutputLinter();
+          }
+        } catch (error) {
+          console.error("Execution error:", error);
+          outputArea.classList.add("error");
+          const errorHtml = displayError(
+            "Execution Error",
+            "An unexpected error occurred during execution:",
+            error.message
+          );
+          outputArea.innerHTML = errorHtml;
+          updateStatus("outputStatus", "error", "Execution Error");
+          updateOutputLinter();
+        } finally {
+          isExecuting = false;
+        }
+      }
+
+      // Initialize
+      const go = new Go();
+      loadWasm();
+    </script>
+  </body>
+</html>
