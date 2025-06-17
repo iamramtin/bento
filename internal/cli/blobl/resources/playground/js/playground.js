@@ -1,10 +1,12 @@
 class BloblangPlayground {
   constructor() {
     this.state = {
+      wasmAvailable: false,
+      executionMode: "wasm", // "wasm" or "server"
       isExecuting: false,
       executionTimeout: null,
-      inputFormatMode: "format",
-      outputFormatMode: "minify",
+      inputFormatMode: "format", // "format" or "minify"
+      outputFormatMode: "minify", // "format" or "minify"
     };
 
     this.elements = {
@@ -22,9 +24,28 @@ class BloblangPlayground {
 
   async init() {
     try {
-      // Initialize modules
+      const params = new URLSearchParams(window.location.search);
+      const forceServerMode = params.get("mode") === "server";
+
       this.editor = new EditorManager();
       this.ui = new UIManager();
+
+      if (!forceServerMode) {
+        this.wasm = new WasmManager();
+        if (this.wasm.go) {
+          await this.wasm.load();
+          this.state.wasmAvailable = this.wasm.available;
+          this.state.executionMode = this.state.wasmAvailable
+            ? "wasm"
+            : "server";
+        } else {
+          this.state.executionMode = "server";
+          this.state.wasmAvailable = false;
+        }
+      } else {
+        this.state.executionMode = "server";
+        this.state.wasmAvailable = false;
+      }
 
       // Setup ACE and fallback editors
       this.editor.init({
@@ -36,13 +57,108 @@ class BloblangPlayground {
       this.ui.init();
       this.bindEvents();
 
-      // Initial execution and linting
       this.updateLinters();
       this.execute();
       this.hideLoading();
     } catch (error) {
       this.handleInitError(error);
     }
+  }
+
+  async execute() {
+    if (this.state.isExecuting) return;
+    this.state.isExecuting = true;
+
+    try {
+      const input = this.editor.getInput();
+      const mapping = this.editor.getMapping();
+
+      let response;
+      switch (this.state.executionMode) {
+        case "wasm":
+          try {
+            response = this.wasm.execute(input, mapping);
+          } catch (error) {
+            this.handleError(
+              "WASM Error",
+              "An error occurred while executing with WASM",
+              error.message,
+              null,
+              "outputStatus",
+              "WASM Error"
+            );
+            return;
+          }
+          break;
+        case "server":
+          try {
+            response = await this.executeHttp(input, mapping);
+          } catch (error) {
+            this.handleError(
+              "Server Error",
+              "An error occurred while communicating with the server",
+              error.message,
+              null,
+              "outputStatus",
+              "Server Error"
+            );
+            return;
+          }
+          break;
+        default:
+          throw new Error("Unknown execution mode");
+      }
+
+      this.handleExecutionResult(response);
+    } catch (error) {
+      this.handleError(
+        "Connection Error",
+        "Ensure Bloblang server is running and try again",
+        error.message,
+        null,
+        "outputStatus",
+        "Connection Error"
+      );
+    } finally {
+      this.state.isExecuting = false;
+    }
+  }
+
+  async executeHttp(input, mapping) {
+    const request = new Request("/execute", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        input: input,
+        mapping: mapping,
+      }),
+    });
+
+    const response = await fetch(request);
+
+    if (response.status === 200) {
+      return await response.json();
+    } else {
+      throw new Error("Server error: " + response.status);
+    }
+  }
+
+  debouncedExecute(type) {
+    if (this.state.executionTimeout) {
+      clearTimeout(this.state.executionTimeout);
+    }
+
+    if (type === "input") {
+      this.ui.updateStatus("inputStatus", "executing", "Processing...");
+    } else if (type === "mapping") {
+      this.ui.updateStatus("mappingStatus", "executing", "Processing...");
+    }
+
+    this.state.executionTimeout = setTimeout(() => {
+      this.execute();
+    }, 300);
   }
 
   bindEvents() {
@@ -83,64 +199,6 @@ class BloblangPlayground {
   onEditorChange(type) {
     this.updateLinters();
     this.debouncedExecute(type);
-  }
-
-  debouncedExecute(type) {
-    if (this.state.executionTimeout) {
-      clearTimeout(this.state.executionTimeout);
-    }
-
-    if (type === "input") {
-      this.ui.updateStatus("inputStatus", "executing", "Processing...");
-    } else if (type === "mapping") {
-      this.ui.updateStatus("mappingStatus", "executing", "Processing...");
-    }
-
-    this.state.executionTimeout = setTimeout(() => {
-      this.execute();
-    }, 300);
-  }
-
-  async execute() {
-    if (this.state.isExecuting) return;
-    this.state.isExecuting = true;
-
-    try {
-      const input = this.editor.getInput();
-      const mapping = this.editor.getMapping();
-
-      // Make HTTP request to /execute endpoint
-      const request = new Request("/execute", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mapping: mapping,
-          input: input,
-        }),
-      });
-
-      const response = await fetch(request);
-
-      if (response.status === 200) {
-        const result = await response.json();
-        this.handleExecutionResult(result);
-      } else {
-        throw new Error("Server error: " + response.status);
-      }
-    } catch (error) {
-      this.handleError(
-        "Connection Error",
-        "Ensure Bloblang server is running and try again",
-        error.message,
-        null,
-        "outputStatus",
-        "Connection Error"
-      );
-    } finally {
-      this.state.isExecuting = false;
-    }
   }
 
   handleExecutionResult(response) {
@@ -269,7 +327,6 @@ class BloblangPlayground {
     this.elements.loadingOverlay.innerHTML = `
       <div style="color: var(--bento-error); text-align: center;">
         <h3>Failed to Load Playground</h3>
-        <p>${error.message}</p>
       </div>
     `;
   }
