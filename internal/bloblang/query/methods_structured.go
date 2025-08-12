@@ -604,6 +604,139 @@ var _ = registerSimpleMethod(
 
 var _ = registerSimpleMethod(
 	NewMethodSpec(
+		"cut",
+		"Splits a string or array at the first occurrence of a delimiter value or where a query resolves to true. Returns two elements: everything up to and including the delimiter, and everything after. If no match is found, returns the original value and an empty string/array.",
+	).InCategory(
+		MethodCategoryObjectAndArray, "",
+		NewExampleSpec("Cut string with static value",
+			`root = this.cut("Bento 🍱")`,
+			`"Bento 🍱 is a fast & fancy stream processor"`,
+			`["Bento 🍱", " is a fast & fancy stream processor"]`,
+		),
+		NewExampleSpec("Cut array with static value",
+			`root = this.villains.cut("Kraven The Hunter")`,
+			`{"villains": ["Doctor Octopus", "Electro", "Kraven The Hunter", "Mysterio", "Sandman", "Vulture"], "heroes": ["Spider-Man", "Daredevil", "Human Torch"]}`,
+			`[["Doctor Octopus", "Electro", "Kraven The Hunter"], ["Mysterio", "Sandman", "Vulture"]]`,
+		),
+		NewExampleSpec("Cut array with predicate",
+			`root = this.cut(x -> x.contains("Kafka"))`,
+			`["George Orwell", "Franz Kafka", "Anton Chekhov"]`,
+			`[["George Orwell", "Franz Kafka"], ["Anton Chekhov"]]`,
+		),
+	).Param(ParamAny("delimiter", "A value to cut at, or a query to execute for each element that returns a boolean.")),
+	func(args *ParsedParams) (simpleMethod, error) {
+		val, err := args.Field("delimiter")
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if delimiter is a Function (predicate) or static value
+		if queryFn, isFunction := val.(Function); isFunction {
+			// Handle predicate case
+			return func(v any, ctx FunctionContext) (any, error) {
+				// Handle strings
+				if str, ok := v.(string); ok {
+					if str == "" {
+						return []any{"", ""}, nil
+					}
+
+					runes := []rune(str)
+					for i, r := range runes {
+						char := string(r)
+						result, err := queryFn.Exec(ctx.WithValue(char))
+						if err != nil {
+							return nil, fmt.Errorf("delimiter returned an error for character at position %v: %w", i, err)
+						}
+
+						if boolResult, ok := result.(bool); ok && boolResult {
+							left := string(runes[:i+1])
+							right := string(runes[i+1:])
+							return []any{left, right}, nil
+						}
+					}
+
+					// No match found
+					return []any{str, ""}, nil
+				}
+
+				// Handle arrays
+				array, ok := v.([]any)
+				if !ok {
+					return nil, value.NewTypeError(v, value.TArray)
+				}
+
+				if len(array) == 0 {
+					return []any{[]any{}, []any{}}, nil
+				}
+
+				for i, elem := range array {
+					result, err := queryFn.Exec(ctx.WithValue(elem))
+					if err != nil {
+						return nil, fmt.Errorf("delimiter returned an error for index %v: %w", i, err)
+					}
+
+					if boolResult, ok := result.(bool); ok && boolResult {
+						left := array[:i+1]
+						right := array[i+1:]
+						return []any{left, right}, nil
+					}
+				}
+
+				// No match found
+				return []any{array, []any{}}, nil
+			}, nil
+		}
+
+		// Handle static value case
+		delimiter := val
+		return func(v any, ctx FunctionContext) (any, error) {
+			// Handle strings
+			if str, ok := v.(string); ok {
+				if str == "" {
+					return []any{"", ""}, nil
+				}
+
+				delimStr := value.IToString(delimiter)
+				if delimStr != "" {
+					if index := strings.Index(str, delimStr); index != -1 {
+						left := str[:index+len(delimStr)]
+						right := str[index+len(delimStr):]
+						return []any{left, right}, nil
+					}
+				}
+
+				// No match found
+				return []any{str, ""}, nil
+			}
+
+			// Handle arrays
+			array, ok := v.([]any)
+			if !ok {
+				return nil, value.NewTypeError(v, value.TArray)
+			}
+
+			if len(array) == 0 {
+				return []any{[]any{}, []any{}}, nil
+			}
+
+			for i, elem := range array {
+				if value.ICompare(delimiter, elem) {
+					left := array[:i+1]
+					right := array[i+1:]
+					return []any{left, right}, nil
+				}
+			}
+
+			// No match found
+			return []any{array, []any{}}, nil
+		}, nil
+	},
+)
+
+//------------------------------------------------------------------------------
+
+var _ = registerSimpleMethod(
+	NewMethodSpec(
 		"flatten",
 		"Iterates an array and any element that is itself an array is removed and has its elements inserted directly in the resulting array.",
 	).InCategory(

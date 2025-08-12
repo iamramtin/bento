@@ -2107,6 +2107,44 @@ root.has_bar = this.thing.contains(20)
 # Out: {"has_bar":false}
 ```
 
+### `cut`
+
+Splits a string or array at the first occurrence of a delimiter value or where a query resolves to true. Returns two elements: everything up to and including the delimiter, and everything after. If no match is found, returns the original value and an empty string/array.
+
+#### Parameters
+
+**`delimiter`** &lt;unknown&gt; A value to cut at, or a query to execute for each element that returns a boolean.  
+
+#### Examples
+
+
+Cut string with static value
+
+```coffee
+root = this.cut("Bento 🍱")
+
+# In:  "Bento 🍱 is a fast & fancy stream processor"
+# Out: ["Bento 🍱", " is a fast & fancy stream processor"]
+```
+
+Cut array with static value
+
+```coffee
+root = this.villains.cut("Kraven The Hunter")
+
+# In:  {"villains": ["Doctor Octopus", "Electro", "Kraven The Hunter", "Mysterio", "Sandman", "Vulture"], "heroes": ["Spider-Man", "Daredevil", "Human Torch"]}
+# Out: [["Doctor Octopus", "Electro", "Kraven The Hunter"], ["Mysterio", "Sandman", "Vulture"]]
+```
+
+Cut array with predicate
+
+```coffee
+root = this.cut(x -> x.contains("Kafka"))
+
+# In:  ["George Orwell", "Franz Kafka", "Anton Chekhov"]
+# Out: [["George Orwell", "Franz Kafka"], ["Anton Chekhov"]]
+```
+
 ### `diff`
 
 :::caution BETA
